@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [statusText, setStatusText] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,12 +51,28 @@ export default function Home() {
     setSummary(null);
 
     try {
-      const formData = new FormData();
-      formData.append("audio", file);
+      // 1. Upload the file directly to Vercel Blob from the browser, as a
+      // PRIVATE blob — never publicly accessible by URL, only your server
+      // (with BLOB_READ_WRITE_TOKEN) can read it back.
+      // This also bypasses the ~4.5MB body-size limit on serverless function
+      // requests, since the audio bytes never pass through our API route.
+      setStatusText("Uploading audio...");
+      const blob = await upload(file.name, file, {
+        access: "private",
+        handleUploadUrl: "/api/blob-upload",
+      });
 
+      // 2. Send only the blob's pathname (tiny JSON payload) to our API
+      // route, which reads it back privately server-side and hands it to Gemini.
+      setStatusText("Transcribing & summarizing...");
       const res = await fetch("/api/summarize-call", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audioPath: blob.pathname,
+          filename: file.name,
+          contentType: file.type,
+        }),
       });
 
       const data = await res.json();
@@ -68,6 +86,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
+      setStatusText(null);
     }
   }
 
@@ -168,7 +187,7 @@ export default function Home() {
                 disabled={!file || loading}
                 className="w-full bg-[#1e3a5f] text-white font-medium py-2.5 rounded-lg hover:bg-[#16304d] disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
-              {loading ? "Processing..." : "Summarize & Send"}
+              {loading ? statusText ?? "Processing..." : "Summarize & Send"}
             </button>
           </form>
 

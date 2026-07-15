@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { Resend } from "resend";
+import { get, del } from "@vercel/blob";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,7 +11,7 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 
 const RECIPIENT_EMAIL = "jboarnerges@advancedteamelite.com";
 
-// Adjust this to whichever Gemini model on your account supports audio input.
+// Mismo modelo que ya usas y funciona en tu chatbot (app/api/chat/route.ts)
 const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
 const SUMMARY_PROMPT = `You are an assistant for Advanced Roofing Team Construction, a roofing company in Illinois.
@@ -57,9 +58,9 @@ function guessMimeType(filename: string, provided: string | null): string {
 function summaryEmailHtml(summaryText: string, originalFilename: string): string {
   const lines = summaryText.split("\n").map((rawLine) => {
     const escaped = rawLine
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 
     if (escaped.startsWith("Lead Summary")) {
       return `<h2 style="color:#1e3a5f;font-size:18px;margin:0 0 14px;">${escaped}</h2>`;
@@ -93,20 +94,51 @@ function summaryEmailHtml(summaryText: string, originalFilename: string): string
 }
 
 export async function POST(req: Request) {
-  try {
-    const formData = await req.formData();
-    const file = formData.get("audio") as File | null;
+  const startedAt = Date.now();
 
-    if (!file) {
-      return NextResponse.json({ error: "No audio file provided" }, { status: 400 });
+  try {
+    const body = await req.json();
+    const { audioPath, filename, contentType } = body as {
+      audioPath?: string;
+      filename?: string;
+      contentType?: string | null;
+    };
+
+    console.log("[summarize-call] incoming request", { audioPath, filename, contentType });
+
+    if (!audioPath || !filename) {
+      console.error("[summarize-call] missing audioPath or filename");
+      return NextResponse.json({ error: "Missing audioPath or filename" }, { status: 400 });
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const base64Audio = Buffer.from(arrayBuffer).toString("base64");
-    const mimeType = guessMimeType(file.name, file.type);
+    // Read the PRIVATE blob back server-side. This requires
+    // BLOB_READ_WRITE_TOKEN and is never exposed via a public URL.
+    console.log("[summarize-call] reading private blob:", audioPath);
+    const result = await get(audioPath, { access: "private" });
 
-    // Gemini handles audio natively — transcription + summarization in one call.
-    const result = await ai.models.generateContent({
+    if (!result || result.statusCode !== 200 || !result.stream) {
+      console.error("[summarize-call] blob not found:", audioPath);
+      return NextResponse.json({ error: "Audio file not found in storage" }, { status: 404 });
+    }
+
+    const arrayBuffer = await new Response(result.stream).arrayBuffer();
+    console.log("[summarize-call] downloaded bytes:", arrayBuffer.byteLength);
+
+    // We only needed the blob temporarily to get the bytes past Vercel's
+    // request-size limit. Delete it now so nothing lingers in storage.
+    try {
+      await del(audioPath);
+      console.log("[summarize-call] deleted blob:", audioPath);
+    } catch (deleteError) {
+      console.error("[summarize-call] failed to delete blob (non-fatal):", deleteError);
+    }
+
+    const base64Audio = Buffer.from(arrayBuffer).toString("base64");
+    const mimeType = guessMimeType(filename, contentType ?? result.blob.contentType);
+    console.log("[summarize-call] resolved mimeType:", mimeType);
+
+    console.log("[summarize-call] calling Gemini model:", GEMINI_MODEL);
+    const result2 = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: [
         {
@@ -124,28 +156,33 @@ export async function POST(req: Request) {
       ],
     });
 
-    const summaryText = result.text?.trim() ?? "";
+    const summaryText = result2.text?.trim() ?? "";
+    console.log("[summarize-call] Gemini responded, length:", summaryText.length);
 
     if (!summaryText) {
+      console.error("[summarize-call] empty summary from Gemini");
       return NextResponse.json({ error: "Gemini returned an empty summary" }, { status: 500 });
     }
 
-    await resend.emails.send({
+    console.log("[summarize-call] sending email via Resend to:", RECIPIENT_EMAIL);
+    const emailResult = await resend.emails.send({
       from: "Advanced Roofing Calls <info@contact.advancedteamelite.com>",
       to: RECIPIENT_EMAIL,
-      subject: `Call Summary — ${file.name}`,
-      html: summaryEmailHtml(summaryText, file.name),
+      subject: `Call Summary — ${filename}`,
+      html: summaryEmailHtml(summaryText, filename),
     });
+    console.log("[summarize-call] Resend result:", emailResult);
 
+    console.log("[summarize-call] done in ms:", Date.now() - startedAt);
     return NextResponse.json({ success: true, summary: summaryText });
   } catch (error) {
-    console.error("summarize-call error:", error);
+    console.error("[summarize-call] unhandled error:", error);
     return NextResponse.json(
-      {
-        error: "Internal Server Error",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
+        {
+          error: "Internal Server Error",
+          details: error instanceof Error ? error.message : String(error),
+        },
+        { status: 500 }
     );
   }
 }
