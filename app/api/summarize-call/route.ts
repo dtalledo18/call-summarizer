@@ -9,7 +9,7 @@ export const maxDuration = 60;
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-const RECIPIENT_EMAIL = "jboarnerges@advancedteamelite.com";
+const RECIPIENT_EMAIL = process.env.NOTIFICATION_EMAIL ?? "jboarnerges@advancedteamelite.com";
 
 // Mismo modelo que ya usas y funciona en tu chatbot (app/api/chat/route.ts)
 const GEMINI_MODEL = "gemini-3.1-flash-lite";
