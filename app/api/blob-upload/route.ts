@@ -25,6 +25,9 @@ export async function POST(request: Request): Promise<NextResponse> {
                     ],
                     // Safety cap — adjust if you expect longer recordings
                     maximumSizeInBytes: 300 * 1024 * 1024, // 300MB
+                    // Avoid "blob already exists" errors when re-uploading a file
+                    // with the same name (e.g. testing the same recording twice).
+                    addRandomSuffix: true,
                 };
             },
             onUploadCompleted: async ({ blob }) => {
