@@ -7,6 +7,11 @@ const JOBNIMBUS_API_URL = "https://app.jobnimbus.com/api1/contacts";
 const JOBNIMBUS_API_KEY = process.env.JOBNIMBUS_API_KEY!;
 const TIME_ZONE = "America/Chicago";
 
+// Only contacts created by Josias (Peru ops team) count as "our" leads.
+// Trying created_by first, per the JobNimbus contact record shape — if this
+// turns out not to match anything, we'll fall back to created_by_name.
+const JOSIAS_JOBNIMBUS_ID = "e2c87c3799644af4b10893bd59ad747a";
+
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAY_INDEX: Record<string, number> = {
     Sun: 0,
@@ -27,6 +32,8 @@ interface JobNimbusContact {
     mobile_phone?: string;
     home_phone?: string;
     status_name?: string;
+    created_by?: string;
+    created_by_name?: string;
 }
 
 interface ContactItem {
@@ -36,6 +43,7 @@ interface ContactItem {
     email: string;
     phone: string;
     status: string;
+    createdBy: string;
     dateCreated: string; // ISO
     dayIndex: number; // 0 = Monday ... 6 = Sunday, in America/Chicago
 }
@@ -122,6 +130,7 @@ function toContactItem(record: JobNimbusContact, weekMonday: YMD): ContactItem {
         email: record.email?.toLowerCase().trim() || "N/A",
         phone: record.mobile_phone || record.home_phone || "N/A",
         status: record.status_name || "N/A",
+        createdBy: record.created_by_name || "N/A",
         dateCreated: new Date(t * 1000).toISOString(),
         dayIndex: daysBetween(weekMonday, contactYMD),
     };
@@ -132,14 +141,25 @@ function toContactItem(record: JobNimbusContact, weekMonday: YMD): ContactItem {
 // JobNimbus is paginated and sorted desc by date_created here, so we page
 // through it and stop as soon as we pass the oldest date we care about —
 // no need to pull the entire contacts history every time.
+// Same must/term filter syntax as the export script — lets JobNimbus filter
+// server-side instead of us paging through every contact from every rep.
+const CREATED_BY_FILTER = encodeURIComponent(
+    JSON.stringify({
+        must: [{ term: { created_by: JOSIAS_JOBNIMBUS_ID } }],
+    })
+);
+
 async function fetchContactsSince(cutoffEpochSeconds: number): Promise<JobNimbusContact[]> {
     const collected: JobNimbusContact[] = [];
     const pageSize = 200;
     let from = 0;
     let keepGoing = true;
+    let totalScanned = 0;
+    let totalMatched = 0;
+    const seenCreators = new Map<string, string>(); // created_by -> created_by_name, for debugging
 
     while (keepGoing) {
-        const url = `${JOBNIMBUS_API_URL}?size=${pageSize}&from=${from}&sort_field=date_created&sort_direction=desc`;
+        const url = `${JOBNIMBUS_API_URL}?size=${pageSize}&from=${from}&sort_field=date_created&sort_direction=desc&filter=${CREATED_BY_FILTER}`;
         console.log("[jobnimbus-leads] fetching page:", { from, pageSize });
 
         const res = await fetch(url, {
@@ -172,6 +192,15 @@ async function fetchContactsSince(cutoffEpochSeconds: number): Promise<JobNimbus
                 hitCutoff = true;
                 break;
             }
+
+            totalScanned++;
+            if (record.created_by) {
+                seenCreators.set(record.created_by, record.created_by_name ?? "(no name)");
+            }
+
+            if (record.created_by !== JOSIAS_JOBNIMBUS_ID) continue;
+
+            totalMatched++;
             collected.push(record);
         }
 
@@ -180,6 +209,19 @@ async function fetchContactsSince(cutoffEpochSeconds: number): Promise<JobNimbus
         } else {
             from += pageSize;
         }
+    }
+
+    console.log("[jobnimbus-leads] created_by filter:", {
+        totalScanned,
+        totalMatched,
+        lookingFor: JOSIAS_JOBNIMBUS_ID,
+    });
+
+    if (totalMatched === 0 && totalScanned > 0) {
+        console.warn(
+            "[jobnimbus-leads] No contacts matched JOSIAS_JOBNIMBUS_ID. Creators seen in range:",
+            Object.fromEntries(seenCreators)
+        );
     }
 
     return collected;

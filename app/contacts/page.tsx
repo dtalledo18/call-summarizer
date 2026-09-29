@@ -24,6 +24,7 @@ interface ContactItem {
     email: string;
     phone: string;
     status: string;
+    createdBy: string;
     dateCreated: string;
     dayIndex: number;
 }
@@ -236,6 +237,7 @@ export default function ContactsPage() {
                                         <th className="py-2 pr-4">Email</th>
                                         <th className="py-2 pr-4">Phone</th>
                                         <th className="py-2 pr-4">Status</th>
+                                        <th className="py-2 pr-4">Created By</th>
                                         <th className="py-2 pr-4">Created</th>
                                     </tr>
                                     </thead>
@@ -248,6 +250,7 @@ export default function ContactsPage() {
                                             <td className="py-2 pr-4 text-slate-600">{c.email}</td>
                                             <td className="py-2 pr-4 text-slate-600">{c.phone}</td>
                                             <td className="py-2 pr-4 text-slate-600">{c.status}</td>
+                                            <td className="py-2 pr-4 text-slate-600">{c.createdBy}</td>
                                             <td className="py-2 pr-4 text-slate-500">{formatTime(c.dateCreated)}</td>
                                         </tr>
                                     ))}
