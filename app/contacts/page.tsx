@@ -69,6 +69,10 @@ function dateLabelForDay(weekStartIso: string, dayIndex: number): string {
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: TIME_ZONE });
 }
 
+function jobNimbusContactUrl(id: string): string {
+    return `https://app.jobnimbus.com/contact/${id}`;
+}
+
 function formatTime(iso: string): string {
     return new Date(iso).toLocaleString("en-US", {
         timeZone: TIME_ZONE,
@@ -239,11 +243,17 @@ export default function ContactsPage() {
                                         <th className="py-2 pr-4">Status</th>
                                         <th className="py-2 pr-4">Created By</th>
                                         <th className="py-2 pr-4">Created</th>
+                                        <th className="py-2 pr-2 w-8" />
                                     </tr>
                                     </thead>
                                     <tbody>
                                     {visibleContacts.map((c) => (
-                                        <tr key={c.id} className="border-b border-slate-100 last:border-0">
+                                        <tr
+                                            key={c.id}
+                                            onClick={() => window.open(jobNimbusContactUrl(c.id), "_blank", "noopener,noreferrer")}
+                                            title="Abrir en JobNimbus"
+                                            className="border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors"
+                                        >
                                             <td className="py-2 pr-4 font-medium text-slate-700">
                                                 {c.firstName} {c.lastName}
                                             </td>
@@ -252,6 +262,22 @@ export default function ContactsPage() {
                                             <td className="py-2 pr-4 text-slate-600">{c.status}</td>
                                             <td className="py-2 pr-4 text-slate-600">{c.createdBy}</td>
                                             <td className="py-2 pr-4 text-slate-500">{formatTime(c.dateCreated)}</td>
+                                            <td className="py-2 pr-2 text-slate-400">
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth={1.75}
+                                                    className="w-4 h-4"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M13.5 6H18a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 18 18H7.5A1.5 1.5 0 0 1 6 16.5V12m3-6h5.25v5.25M9 15 18 6"
+                                                    />
+                                                </svg>
+                                            </td>
                                         </tr>
                                     ))}
                                     </tbody>
