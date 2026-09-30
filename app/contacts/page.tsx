@@ -133,16 +133,16 @@ export default function ContactsPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-6">
             <div>
-                <h1 className="text-xl font-bold text-[#1e3a5f] mb-1">Leads Dashboard</h1>
-                <p className="text-sm text-slate-500">
+                <h1 className="text-xl font-bold text-white mb-1">Leads Dashboard</h1>
+                <p className="text-sm text-gray-400">
                     Contacts created in JobNimbus, this week vs. last week.
                 </p>
             </div>
 
-            {loading && <div className="text-sm text-slate-500">Loading leads data...</div>}
+            {loading && <div className="text-sm text-gray-500">Loading leads data...</div>}
 
             {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                <div className="p-4 bg-red-950/40 border border-red-900 rounded-lg text-sm text-red-300">
                     {error}
                 </div>
             )}
@@ -150,59 +150,69 @@ export default function ContactsPage() {
             {data && !loading && !error && (
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                            <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">
+                        <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-5">
+                            <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">
                                 Leads this week
                             </div>
-                            <div className="text-3xl font-bold text-[#1e3a5f]">{data.currentWeekTotal}</div>
+                            <div className="text-3xl font-bold text-white">{data.currentWeekTotal}</div>
                         </div>
 
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                            <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">
+                        <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-5">
+                            <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">
                                 Leads last week
                             </div>
-                            <div className="text-3xl font-bold text-slate-700">{data.previousWeekTotal}</div>
+                            <div className="text-3xl font-bold text-gray-300">{data.previousWeekTotal}</div>
                         </div>
 
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                            <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">
+                        <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-5">
+                            <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">
                                 Change vs. last week
                             </div>
-                            <div className={`text-3xl font-bold ${isUp ? "text-emerald-600" : "text-red-600"}`}>
+                            <div className={`text-3xl font-bold ${isUp ? "text-emerald-400" : "text-red-400"}`}>
                                 {isUp ? "+" : ""}
                                 {data.percentChange}%
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                        <h2 className="text-sm font-semibold text-slate-700 mb-4">Leads per day</h2>
+                    <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-5">
+                        <h2 className="text-sm font-semibold text-gray-200 mb-4">Leads per day</h2>
                         <div style={{ width: "100%", height: 300 }}>
                             <ResponsiveContainer>
                                 <BarChart data={chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                    <XAxis dataKey="day" stroke="#6b7280" fontSize={12} />
-                                    <YAxis stroke="#6b7280" fontSize={12} allowDecimals={false} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="Last week" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="This week" fill="#1e3a5f" radius={[4, 4, 0, 0]} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+                                    <XAxis dataKey="day" stroke="#9ca3af" fontSize={12} />
+                                    <YAxis stroke="#9ca3af" fontSize={12} allowDecimals={false} />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: "#1a1a1a",
+                                            border: "1px solid #2a2a2a",
+                                            borderRadius: 8,
+                                            color: "#e5e7eb",
+                                        }}
+                                        labelStyle={{ color: "#e5e7eb" }}
+                                        itemStyle={{ color: "#e5e7eb" }}
+                                        cursor={{ fill: "#ffffff0d" }}
+                                    />
+                                    <Legend wrapperStyle={{ color: "#9ca3af" }} />
+                                    <Bar dataKey="Last week" fill="#3f3f46" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="This week" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
                     {/* Day navigator */}
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-5">
                         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                            <h2 className="text-sm font-semibold text-slate-700">Leads list</h2>
+                            <h2 className="text-sm font-semibold text-gray-200">Leads list</h2>
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     onClick={() => setSelectedDay("all")}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                         selectedDay === "all"
-                                            ? "bg-[#1e3a5f] text-white"
-                                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                            ? "bg-white text-[#111111]"
+                                            : "bg-[#232323] text-gray-400 hover:bg-[#2a2a2a] hover:text-gray-200"
                                     }`}
                                 >
                                     All week
@@ -213,10 +223,10 @@ export default function ContactsPage() {
                                         onClick={() => setSelectedDay(i)}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                             selectedDay === i
-                                                ? "bg-[#1e3a5f] text-white"
+                                                ? "bg-white text-[#111111]"
                                                 : i === todayIdx
-                                                    ? "bg-blue-50 text-[#1e3a5f] border border-blue-200 hover:bg-blue-100"
-                                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                                    ? "bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20"
+                                                    : "bg-[#232323] text-gray-400 hover:bg-[#2a2a2a] hover:text-gray-200"
                                         }`}
                                     >
                                         {i === todayIdx ? "Today" : label}
@@ -229,14 +239,14 @@ export default function ContactsPage() {
                         </div>
 
                         {visibleContacts.length === 0 ? (
-                            <div className="text-sm text-slate-400 py-8 text-center">
+                            <div className="text-sm text-gray-500 py-8 text-center">
                                 No leads for this selection.
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
-                                    <tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200">
+                                    <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-[#2a2a2a]">
                                         <th className="py-2 pr-4">Name</th>
                                         <th className="py-2 pr-4">Email</th>
                                         <th className="py-2 pr-4">Phone</th>
@@ -252,17 +262,17 @@ export default function ContactsPage() {
                                             key={c.id}
                                             onClick={() => window.open(jobNimbusContactUrl(c.id), "_blank", "noopener,noreferrer")}
                                             title="Abrir en JobNimbus"
-                                            className="group border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors"
+                                            className="group border-b border-[#232323] last:border-0 cursor-pointer hover:bg-[#1f1f1f] transition-colors"
                                         >
-                                            <td className="py-2 pr-4 font-medium text-slate-700">
+                                            <td className="py-2 pr-4 font-medium text-gray-100">
                                                 {c.firstName} {c.lastName}
                                             </td>
-                                            <td className="py-2 pr-4 text-slate-600">{c.email}</td>
-                                            <td className="py-2 pr-4 text-slate-600">{c.phone}</td>
-                                            <td className="py-2 pr-4 text-slate-600">{c.status}</td>
-                                            <td className="py-2 pr-4 text-slate-600">{c.createdBy}</td>
-                                            <td className="py-2 pr-4 text-slate-500">{formatTime(c.dateCreated)}</td>
-                                            <td className="py-2 pr-2 text-slate-400 group-hover:text-slate-600">
+                                            <td className="py-2 pr-4 text-gray-400">{c.email}</td>
+                                            <td className="py-2 pr-4 text-gray-400">{c.phone}</td>
+                                            <td className="py-2 pr-4 text-gray-400">{c.status}</td>
+                                            <td className="py-2 pr-4 text-gray-400">{c.createdBy}</td>
+                                            <td className="py-2 pr-4 text-gray-500">{formatTime(c.dateCreated)}</td>
+                                            <td className="py-2 pr-2 text-gray-600 group-hover:text-gray-300">
                                                 <svg
                                                     xmlns="http://www.w3.org/2000/svg"
                                                     viewBox="0 0 24 24"

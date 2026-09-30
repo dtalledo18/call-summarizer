@@ -6,23 +6,23 @@ export default function Header() {
     const pathname = usePathname();
 
     return (
-        <header className="flex justify-between items-center px-8 py-4 border-b border-gray-200 bg-white shadow-sm">
-            <div className="font-bold text-lg flex items-center gap-2">
-                <span>Call Summarizer & Sync</span>
+        <header className="flex justify-between items-center px-8 py-4 border-b border-[#2a2a2a] bg-[#111111] shadow-sm">
+            <div className="font-bold text-lg flex items-center gap-2 text-white">
+                <span>Advanced Summarizer</span>
             </div>
             <nav className="flex gap-4">
                 <Link
                     href="/"
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        pathname === '/' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'
+                        pathname === '/' ? 'bg-white text-[#111111]' : 'text-gray-300 hover:bg-[#1f1f1f] hover:text-white'
                     }`}
                 >
-                    Summarizer
+                    Calls
                 </Link>
                 <Link
                     href="/contacts"
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        pathname === '/contacts' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'
+                        pathname === '/contacts' ? 'bg-white text-[#111111]' : 'text-gray-300 hover:bg-[#1f1f1f] hover:text-white'
                     }`}
                 >
                     Contacts

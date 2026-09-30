@@ -97,18 +97,16 @@ export default function Home() {
 
   return (
       <main className="min-h-screen flex items-center justify-center p-6">
-        <div className="w-full max-w-lg bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-          <h1 className="text-xl font-bold text-[#1e3a5f] mb-1">
-            Call Summarizer
-          </h1>
-          <p className="text-sm text-slate-500 mb-6">
+        <div className="w-full max-w-lg bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-8">
+          <h1 className="text-xl font-bold text-white mb-1">Call Summarizer</h1>
+          <p className="text-sm text-gray-400 mb-6">
             Upload a call recording. It will be transcribed, summarized into a
             lead report, and emailed to the team automatically.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Audio file
               </label>
 
@@ -119,10 +117,10 @@ export default function Home() {
                   onClick={() => inputRef.current?.click()}
                   className={`relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center cursor-pointer transition ${
                       isDragging
-                          ? "border-[#1e3a5f] bg-blue-50"
+                          ? "border-blue-500 bg-blue-500/10"
                           : file
-                              ? "border-[#1e3a5f]/40 bg-slate-50"
-                              : "border-slate-300 bg-slate-50 hover:border-[#1e3a5f]/50 hover:bg-slate-100"
+                              ? "border-blue-500/40 bg-[#151515]"
+                              : "border-[#2a2a2a] bg-[#151515] hover:border-blue-500/40 hover:bg-[#1a1a1a]"
                   }`}
               >
                 <input
@@ -134,9 +132,7 @@ export default function Home() {
                 />
 
                 <svg
-                    className={`w-9 h-9 ${
-                        isDragging ? "text-[#1e3a5f]" : "text-slate-400"
-                    }`}
+                    className={`w-9 h-9 ${isDragging ? "text-blue-400" : "text-gray-500"}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -151,10 +147,10 @@ export default function Home() {
 
                 {file ? (
                     <div className="flex flex-col items-center gap-1">
-                  <span className="text-sm font-medium text-slate-700 break-all max-w-[280px]">
+                  <span className="text-sm font-medium text-gray-200 break-all max-w-[280px]">
                     {file.name}
                   </span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-gray-500">
                     {formatSize(file.size)} · click or drop to replace
                   </span>
                       <button
@@ -164,17 +160,17 @@ export default function Home() {
                             pickFile(null);
                             if (inputRef.current) inputRef.current.value = "";
                           }}
-                          className="mt-2 text-xs text-red-500 hover:text-red-600 underline"
+                          className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
                       >
                         Remove file
                       </button>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-1">
-                  <span className="text-sm font-medium text-slate-600">
+                  <span className="text-sm font-medium text-gray-300">
                     Drag & drop your audio file here
                   </span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-gray-500">
                     or click to browse · mp3, wav, m4a, etc.
                   </span>
                     </div>
@@ -185,24 +181,24 @@ export default function Home() {
             <button
                 type="submit"
                 disabled={!file || loading}
-                className="w-full bg-[#1e3a5f] text-white font-medium py-2.5 rounded-lg hover:bg-[#16304d] disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="w-full bg-blue-500 text-white font-medium py-2.5 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {loading ? statusText ?? "Processing..." : "Summarize & Send"}
             </button>
           </form>
 
           {error && (
-              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <div className="mt-6 p-4 bg-red-950/40 border border-red-900 rounded-lg text-sm text-red-300">
                 {error}
               </div>
           )}
 
           {summary && (
               <div className="mt-6">
-                <h2 className="text-sm font-semibold text-slate-700 mb-2">
+                <h2 className="text-sm font-semibold text-gray-200 mb-2">
                   Summary sent to the team ✅
                 </h2>
-                <pre className="whitespace-pre-wrap text-sm bg-slate-50 border border-slate-200 rounded-lg p-4 text-slate-700 font-mono">
+                <pre className="whitespace-pre-wrap text-sm bg-[#151515] border border-[#2a2a2a] rounded-lg p-4 text-gray-300 font-mono">
               {summary}
             </pre>
               </div>
