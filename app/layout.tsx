@@ -4,8 +4,8 @@ import Header from "@/app/components/Header";
 
 export const metadata: Metadata = {
     title: {
-        default: "Call & Leads Summarizer",
-        template: "%s · Call & Leads Summarizer",
+        default: "Advanced Summarizer",
+        template: "Advanced Summarizer",
     },
     description: "Gestión de llamadas, sync de leads con Notion, y dashboard de leads de JobNimbus.",
 };
