@@ -12,8 +12,13 @@ const TIME_ZONE = "America/Chicago";
 // turns out not to match anything, we'll fall back to created_by_name.
 const JOSIAS_JOBNIMBUS_ID = "e2c87c3799644af4b10893bd59ad747a";
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const WEEKDAY_INDEX: Record<string, number> = {
+// Week runs Saturday through Friday (not the Mon-Sun standard) — day 0 is
+// the most recent Saturday, day 6 is the following Friday.
+const DAY_LABELS = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
+
+// Standard JS weekday numbering (Sun=0...Sat=6), used only to figure out how
+// many days back the most recent Saturday was.
+const STANDARD_WEEKDAY_INDEX: Record<string, number> = {
     Sun: 0,
     Mon: 1,
     Tue: 2,
@@ -45,7 +50,7 @@ interface ContactItem {
     status: string;
     createdBy: string;
     dateCreated: string; // ISO
-    dayIndex: number; // 0 = Monday ... 6 = Sunday, in America/Chicago
+    dayIndex: number; // 0 = Saturday ... 6 = Friday, in America/Chicago
 }
 
 interface YMD {
@@ -112,15 +117,17 @@ function daysBetween(a: YMD, b: YMD): number {
     return Math.round((utcB - utcA) / 86400000);
 }
 
+// Finds the most recent Saturday (in Chicago's calendar) on or before "now",
+// and treats that as day 0 of the current week.
 function startOfWeekChicago(nowMillis: number): { millis: number; ymd: YMD } {
     const { year, month, day, weekday } = chicagoDateParts(nowMillis);
-    const weekdayIndex = WEEKDAY_INDEX[weekday] ?? 0;
-    const diffToMonday = weekdayIndex === 0 ? -6 : 1 - weekdayIndex;
-    const monday = addDays({ year, month, day }, diffToMonday);
-    return { millis: chicagoMidnightUTCMillis(monday), ymd: monday };
+    const nativeIndex = STANDARD_WEEKDAY_INDEX[weekday] ?? 0; // Sun=0...Sat=6
+    const diffToSaturday = -((nativeIndex + 1) % 7);
+    const saturday = addDays({ year, month, day }, diffToSaturday);
+    return { millis: chicagoMidnightUTCMillis(saturday), ymd: saturday };
 }
 
-function toContactItem(record: JobNimbusContact, weekMonday: YMD): ContactItem {
+function toContactItem(record: JobNimbusContact, weekStart: YMD): ContactItem {
     const t = record.date_created!;
     const contactYMD = chicagoDateParts(t * 1000);
     return {
@@ -132,15 +139,12 @@ function toContactItem(record: JobNimbusContact, weekMonday: YMD): ContactItem {
         status: record.status_name || "N/A",
         createdBy: record.created_by_name || "N/A",
         dateCreated: new Date(t * 1000).toISOString(),
-        dayIndex: daysBetween(weekMonday, contactYMD),
+        dayIndex: daysBetween(weekStart, contactYMD),
     };
 }
 
 // ─── JobNimbus fetch ─────────────────────────────────────────────────────────
 
-// JobNimbus is paginated and sorted desc by date_created here, so we page
-// through it and stop as soon as we pass the oldest date we care about —
-// no need to pull the entire contacts history every time.
 // Same must/term filter syntax as the export script — lets JobNimbus filter
 // server-side instead of us paging through every contact from every rep.
 const CREATED_BY_FILTER = encodeURIComponent(
@@ -149,6 +153,9 @@ const CREATED_BY_FILTER = encodeURIComponent(
     })
 );
 
+// JobNimbus is paginated and sorted desc by date_created here, so we page
+// through it and stop as soon as we pass the oldest date we care about —
+// no need to pull the entire contacts history every time.
 async function fetchContactsSince(cutoffEpochSeconds: number): Promise<JobNimbusContact[]> {
     const collected: JobNimbusContact[] = [];
     const pageSize = 200;
@@ -235,14 +242,14 @@ export async function GET() {
         }
 
         const now = Date.now();
-        const { millis: currentWeekStartMillis, ymd: currentWeekMonday } = startOfWeekChicago(now);
-        const previousWeekMonday = addDays(currentWeekMonday, -7);
-        const previousWeekStartMillis = chicagoMidnightUTCMillis(previousWeekMonday);
+        const { millis: currentWeekStartMillis, ymd: currentWeekStart } = startOfWeekChicago(now);
+        const previousWeekStart = addDays(currentWeekStart, -7);
+        const previousWeekStartMillis = chicagoMidnightUTCMillis(previousWeekStart);
 
         const currentWeekStartEpoch = Math.floor(currentWeekStartMillis / 1000);
         const previousWeekStartEpoch = Math.floor(previousWeekStartMillis / 1000);
 
-        console.log("[jobnimbus-leads] week boundaries (America/Chicago)", {
+        console.log("[jobnimbus-leads] week boundaries (America/Chicago, Sat-Fri)", {
             previousWeekStart: new Date(previousWeekStartMillis).toISOString(),
             currentWeekStart: new Date(currentWeekStartMillis).toISOString(),
             now: new Date(now).toISOString(),
@@ -262,12 +269,12 @@ export async function GET() {
             if (!t) continue;
 
             if (t >= currentWeekStartEpoch) {
-                const item = toContactItem(contact, currentWeekMonday);
+                const item = toContactItem(contact, currentWeekStart);
                 currentWeekTotal++;
                 if (item.dayIndex >= 0 && item.dayIndex < 7) dailyCurrent[item.dayIndex]++;
                 contactsCurrentWeek.push(item);
             } else if (t >= previousWeekStartEpoch) {
-                const item = toContactItem(contact, previousWeekMonday);
+                const item = toContactItem(contact, previousWeekStart);
                 previousWeekTotal++;
                 if (item.dayIndex >= 0 && item.dayIndex < 7) dailyPrevious[item.dayIndex]++;
             }

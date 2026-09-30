@@ -39,20 +39,20 @@ interface LeadsData {
     contactsCurrentWeek: ContactItem[];
 }
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_LABELS = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
 
 const TIME_ZONE = "America/Chicago";
 const CHICAGO_WEEKDAY_INDEX: Record<string, number> = {
-    Mon: 0,
-    Tue: 1,
-    Wed: 2,
-    Thu: 3,
-    Fri: 4,
-    Sat: 5,
-    Sun: 6,
+    Sat: 0,
+    Sun: 1,
+    Mon: 2,
+    Tue: 3,
+    Wed: 4,
+    Thu: 5,
+    Fri: 6,
 };
 
-// Matches the backend's America/Chicago Mon=0..Sun=6 day numbering, so
+// Matches the backend's America/Chicago Sat=0..Fri=6 day numbering, so
 // "today" lines up with the same day bucket the API used — regardless of
 // what timezone the viewer's browser is in.
 function todayIndexChicago(): number {
