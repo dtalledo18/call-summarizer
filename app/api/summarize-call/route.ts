@@ -11,8 +11,30 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 
 const RECIPIENT_EMAIL = process.env.NOTIFICATION_EMAIL ?? "jboarnerges@advancedteamelite.com";
 
-// Mismo modelo que ya usas y funciona en tu chatbot (app/api/chat/route.ts)
-const GEMINI_MODEL = "gemini-3.1-flash-lite";
+// Modelos en orden de prioridad. El primero es el que ya te funciona en tu
+// chatbot (app/api/chat/route.ts); los demás son respaldo si está saturado.
+// Se puede sobreescribir con la env var GEMINI_MODELS (separados por coma).
+// Si algún ID no existe en tu cuenta (404), se salta al siguiente solo.
+const DEFAULT_MODELS = [
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash",
+];
+
+const GEMINI_MODELS = (process.env.GEMINI_MODELS ?? DEFAULT_MODELS.join(","))
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+
+// Gemini devuelve 503 ("high demand") o 429 (rate limit) de forma temporal.
+// Por cada modelo reintentamos un par de veces; si sigue fallando, pasamos
+// al siguiente modelo de la lista.
+const RETRYABLE_STATUS = [429, 500, 503, 504];
+const ATTEMPTS_PER_MODEL = 2;
+const BASE_DELAY_MS = 2000; // 2s entre reintentos del mismo modelo
+const TIME_BUDGET_MS = 50_000; // maxDuration es 60s; dejamos margen para el email
 
 const SUMMARY_PROMPT = `You are an assistant for Advanced Roofing Team Construction, a roofing company in Illinois.
 
@@ -93,6 +115,69 @@ function summaryEmailHtml(summaryText: string, originalFilename: string): string
   </div>`;
 }
 
+function getErrorStatus(error: unknown): number | undefined {
+  const status = (error as { status?: unknown })?.status;
+  if (typeof status === "number") return status;
+  // Fallback: parse "got status: 503 ..." from the message
+  const match = error instanceof Error ? error.message.match(/status:\s*(\d{3})/) : null;
+  return match ? Number(match[1]) : undefined;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function generateWithFallback(mimeType: string, base64Audio: string, startedAt: number) {
+  let lastError: unknown;
+
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 1; attempt <= ATTEMPTS_PER_MODEL; attempt++) {
+      if (Date.now() - startedAt > TIME_BUDGET_MS) {
+        console.warn("[summarize-call] time budget exhausted, giving up");
+        throw lastError ?? new Error("Time budget exhausted before Gemini responded");
+      }
+
+      try {
+        console.log(`[summarize-call] Gemini ${model} attempt ${attempt}/${ATTEMPTS_PER_MODEL}`);
+        const response = await ai.models.generateContent({
+          model,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: SUMMARY_PROMPT },
+                {
+                  inlineData: {
+                    mimeType,
+                    data: base64Audio,
+                  },
+                },
+              ],
+            },
+          ],
+        });
+        console.log(`[summarize-call] succeeded with model: ${model}`);
+        return response;
+      } catch (error) {
+        lastError = error;
+        const status = getErrorStatus(error);
+        console.warn(`[summarize-call] ${model} attempt ${attempt} failed`, { status });
+
+        // 404 = this model doesn't exist on the account -> skip to next model
+        if (status === 404) break;
+
+        const retryable = status !== undefined && RETRYABLE_STATUS.includes(status);
+        // Non-retryable (e.g. 400 bad request) would fail on every model -> stop
+        if (!retryable) throw error;
+
+        // Retryable: wait and retry same model, unless it was the last attempt
+        if (attempt < ATTEMPTS_PER_MODEL) await sleep(BASE_DELAY_MS);
+      }
+    }
+    console.warn(`[summarize-call] moving on from model ${model}`);
+  }
+
+  throw lastError ?? new Error("All Gemini models failed");
+}
+
 export async function POST(req: Request) {
   const startedAt = Date.now();
 
@@ -137,24 +222,8 @@ export async function POST(req: Request) {
     const mimeType = guessMimeType(filename, contentType ?? result.blob.contentType);
     console.log("[summarize-call] resolved mimeType:", mimeType);
 
-    console.log("[summarize-call] calling Gemini model:", GEMINI_MODEL);
-    const result2 = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: SUMMARY_PROMPT },
-            {
-              inlineData: {
-                mimeType,
-                data: base64Audio,
-              },
-            },
-          ],
-        },
-      ],
-    });
+    console.log("[summarize-call] calling Gemini, model order:", GEMINI_MODELS);
+    const result2 = await generateWithFallback(mimeType, base64Audio, startedAt);
 
     const summaryText = result2.text?.trim() ?? "";
     console.log("[summarize-call] Gemini responded, length:", summaryText.length);
@@ -177,6 +246,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, summary: summaryText });
   } catch (error) {
     console.error("[summarize-call] unhandled error:", error);
+
+    const status = getErrorStatus(error);
+    if (status === 503 || status === 429) {
+      return NextResponse.json(
+          {
+            error:
+                "Gemini is overloaded right now (high demand). Please wait a few minutes and upload the file again.",
+          },
+          { status: 503 }
+      );
+    }
+
     return NextResponse.json(
         {
           error: "Internal Server Error",
